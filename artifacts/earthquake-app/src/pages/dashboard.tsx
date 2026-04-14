@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useEarthquakes, TimeRange, EarthquakeFeature } from "@/hooks/use-earthquakes";
 import { useProximityAlert } from "@/hooks/use-proximity-alert";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { Layout } from "@/components/layout";
 import { EarthquakeList } from "@/components/earthquake-list";
 import { WorldMap } from "@/components/world-map";
-import { AlertTriangle, Activity, Database, TrendingUp, Filter, MapPin, Volume2, VolumeX, X } from "lucide-react";
+import { AlertTriangle, Activity, Database, TrendingUp, Filter, MapPin, Volume2, VolumeX, X, Bell, BellOff } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Dashboard() {
@@ -14,6 +15,42 @@ export default function Dashboard() {
   const earthquakes = data?.features || [];
   const { userLocation, locationError, locationGranted, proximityAlerts, alarmActive, dismissAlarm } =
     useProximityAlert(earthquakes);
+
+  const { permission, isRegistering, requestPermission } = usePushNotifications(userLocation);
+
+  // Listen for alarm trigger from service worker background notifications
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "EARTHQUAKE_ALARM" && event.data.play) {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContext();
+        }
+        const ctx = audioCtxRef.current;
+        const resume = () => {
+          const beats = [0, 0.22, 0.44, 0.66, 0.88, 1.1, 1.32, 1.54];
+          beats.forEach((start, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "square";
+            osc.frequency.value = i % 2 === 0 ? 960 : 720;
+            const t = ctx.currentTime + start;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(1.0, t + 0.01);
+            gain.gain.setValueAtTime(1.0, t + 0.17);
+            gain.gain.linearRampToValueAtTime(0, t + 0.2);
+            osc.start(t);
+            osc.stop(t + 0.21);
+          });
+        };
+        ctx.state === "suspended" ? ctx.resume().then(resume) : resume();
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", handler);
+    return () => navigator.serviceWorker?.removeEventListener("message", handler);
+  }, []);
 
   // Countdown timer for next refresh (10s interval)
   const [countdown, setCountdown] = useState(10);
@@ -164,6 +201,37 @@ export default function Dashboard() {
               )}
             </span>
             <VolumeX className="w-4 h-4 ml-auto text-green-600" />
+          </div>
+        )}
+
+        {/* Push Notification Permission Banner */}
+        {permission === "default" && (
+          <div className="flex items-center gap-3 bg-blue-950/50 border border-blue-700/50 rounded-md px-4 py-2.5 text-xs" data-testid="push-permission-banner">
+            <Bell className="w-4 h-4 text-blue-400 shrink-0" />
+            <div className="flex-1">
+              <span className="text-blue-300 font-semibold uppercase tracking-wider">Enable Push Notifications</span>
+              <span className="text-blue-400 ml-2">Get real-time M4.5+ alerts even when the app is closed</span>
+            </div>
+            <button
+              onClick={requestPermission}
+              disabled={isRegistering}
+              className="shrink-0 bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+              data-testid="enable-push-btn"
+            >
+              {isRegistering ? "Registering..." : "Enable"}
+            </button>
+          </div>
+        )}
+        {permission === "granted" && (
+          <div className="flex items-center gap-2 bg-blue-950/20 border border-blue-900/30 rounded-md px-3 py-2 text-xs text-blue-500" data-testid="push-active-banner">
+            <Bell className="w-4 h-4 shrink-0" />
+            <span>Push notifications active — you will receive alerts even when the app is closed</span>
+          </div>
+        )}
+        {permission === "denied" && (
+          <div className="flex items-center gap-2 bg-yellow-950/30 border border-yellow-800/30 rounded-md px-3 py-2 text-xs text-yellow-500" data-testid="push-denied-banner">
+            <BellOff className="w-4 h-4 shrink-0" />
+            <span>Push notifications blocked — enable them in your browser settings to receive background alerts</span>
           </div>
         )}
 
