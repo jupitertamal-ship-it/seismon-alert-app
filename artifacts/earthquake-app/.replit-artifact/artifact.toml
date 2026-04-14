@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Earthquake Early Warning System"
+version = "1.0.0"
+id = "artifacts/earthquake-app"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18576
+
+[services.development]
+run = "pnpm --filter @workspace/earthquake-app run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/earthquake-app", "run", "build" ]
+publicDir = "artifacts/earthquake-app/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18576"
+BASE_PATH = "/"
