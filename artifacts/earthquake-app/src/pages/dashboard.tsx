@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useEarthquakes, TimeRange } from "@/hooks/use-earthquakes";
+import { useEarthquakes, TimeRange, EarthquakeFeature } from "@/hooks/use-earthquakes";
 import { useProximityAlert } from "@/hooks/use-proximity-alert";
 import { Layout } from "@/components/layout";
 import { EarthquakeList } from "@/components/earthquake-list";
@@ -197,24 +197,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
           <div className="lg:col-span-2 flex flex-col gap-6">
             <WorldMap earthquakes={earthquakes} />
-            <div className="flex-1 bg-card rounded-lg border border-border p-4">
-               {/* Activity Graph placeholder */}
-               <div className="flex items-center justify-between mb-4">
-                 <h3 className="uppercase tracking-widest text-xs font-bold text-muted-foreground flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" /> Energy Signature
-                 </h3>
-               </div>
-               <div className="h-32 w-full flex items-end justify-between gap-1 opacity-50 px-2 pb-2">
-                 {/* Fake waveform */}
-                 {Array.from({ length: 50 }).map((_, i) => {
-                    const height = Math.random() * 20 + (Math.sin(i * 0.5) * 10) + 10;
-                    return (
-                      <div key={i} className="w-full bg-primary rounded-t-sm transition-all" style={{ height: `${height}%`, opacity: Math.random() * 0.5 + 0.2 }} />
-                    )
-                 })}
-               </div>
-               <div className="text-[10px] text-muted-foreground uppercase text-center border-t border-border pt-2">Simulated Waveform Reference</div>
-            </div>
+            <MagnitudeChart earthquakes={earthquakes} />
           </div>
           
           <div className="lg:col-span-1 h-[600px] lg:h-auto">
@@ -233,6 +216,128 @@ function StatCard({ title, value, subtitle, valueColor = "text-foreground" }: { 
       <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2 font-bold">{title}</div>
       <div className={`text-3xl font-mono ${valueColor}`}>{value}</div>
       <div className="text-[10px] text-muted-foreground uppercase mt-2 opacity-70">{subtitle}</div>
+    </div>
+  );
+}
+
+function barColor(mag: number): string {
+  if (mag >= 6.0) return "#ef4444";
+  if (mag >= 4.0) return "#f97316";
+  if (mag >= 2.0) return "#eab308";
+  return "#22c55e";
+}
+
+function MagnitudeChart({ earthquakes }: { earthquakes: EarthquakeFeature[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  // Sort oldest → newest, take last 80 events
+  const sorted = [...earthquakes]
+    .filter(eq => eq.properties.mag != null)
+    .sort((a, b) => a.properties.time - b.properties.time)
+    .slice(-80);
+
+  const maxMag = 9;
+  const yTicks = [0, 3, 6, 9];
+
+  const hoveredEq = hovered !== null ? sorted[hovered] : null;
+
+  return (
+    <div className="bg-card rounded-lg border border-border p-4" data-testid="magnitude-chart">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="uppercase tracking-widest text-xs font-bold text-muted-foreground flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" /> Energy Signature
+        </h3>
+        <span className="text-[10px] text-muted-foreground font-mono">
+          {sorted.length} events
+        </span>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div className="h-32 flex items-center justify-center text-muted-foreground text-xs uppercase tracking-wider">
+          No data in range
+        </div>
+      ) : (
+        <>
+          {/* Tooltip */}
+          <div className="h-9 mb-1 flex items-center">
+            {hoveredEq ? (
+              <div className="text-xs font-mono flex items-center gap-3 animate-in fade-in duration-100">
+                <span
+                  className="px-1.5 py-0.5 rounded text-white text-[11px] font-bold"
+                  style={{ background: barColor(hoveredEq.properties.mag) }}
+                  data-testid="chart-tooltip-mag"
+                >
+                  M {hoveredEq.properties.mag.toFixed(1)}
+                </span>
+                <span className="text-muted-foreground truncate max-w-xs" data-testid="chart-tooltip-place">
+                  {hoveredEq.properties.place}
+                </span>
+                <span className="text-muted-foreground/60 shrink-0">
+                  {new Date(hoveredEq.properties.time).toLocaleTimeString()}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">
+                Hover a bar for details
+              </span>
+            )}
+          </div>
+
+          {/* Chart area */}
+          <div className="flex gap-px items-end" style={{ height: "7rem" }}>
+            {/* Y-axis */}
+            <div className="flex flex-col justify-between items-end pr-1.5 shrink-0" style={{ height: "100%" }}>
+              {[...yTicks].reverse().map(t => (
+                <span key={t} className="text-[9px] text-muted-foreground/50 font-mono leading-none">
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            {/* Bars */}
+            <div className="relative flex-1 flex items-end gap-px" style={{ height: "100%" }}>
+              {/* Grid lines */}
+              {yTicks.map(t => (
+                <div
+                  key={t}
+                  className="absolute w-full border-t border-white/5"
+                  style={{ bottom: `${(t / maxMag) * 100}%` }}
+                />
+              ))}
+
+              {sorted.map((eq, i) => {
+                const pct = Math.max(2, (eq.properties.mag / maxMag) * 100);
+                const color = barColor(eq.properties.mag);
+                const isHov = hovered === i;
+                return (
+                  <div
+                    key={eq.id}
+                    className="flex-1 rounded-t-sm cursor-crosshair transition-all duration-150"
+                    style={{
+                      height: `${pct}%`,
+                      background: color,
+                      opacity: isHov ? 1 : hovered !== null ? 0.35 : 0.7,
+                      transform: isHov ? "scaleY(1.06)" : "scaleY(1)",
+                      transformOrigin: "bottom",
+                      minWidth: 2,
+                    }}
+                    onMouseEnter={() => setHovered(i)}
+                    onMouseLeave={() => setHovered(null)}
+                    data-testid={`chart-bar-${i}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* X-axis label */}
+          <div className="flex justify-between text-[9px] text-muted-foreground/40 font-mono mt-1.5 border-t border-border pt-1">
+            <span>{sorted.length > 0 ? new Date(sorted[0].properties.time).toLocaleTimeString() : ""}</span>
+            <span className="uppercase tracking-widest">Oldest → Newest</span>
+            <span>{sorted.length > 0 ? new Date(sorted[sorted.length - 1].properties.time).toLocaleTimeString() : ""}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
