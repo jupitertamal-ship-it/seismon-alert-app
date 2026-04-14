@@ -73,7 +73,7 @@ export const useEarthquakes = (timeRange: TimeRange = "day") => {
       }
       return response.json();
     },
-    refetchInterval: 60000, // Refresh every 60 seconds
+    refetchInterval: 10000, // Refresh every 10 seconds for early P-wave detection
   });
 };
 

@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { useEarthquakes, TimeRange } from "@/hooks/use-earthquakes";
+import { useProximityAlert } from "@/hooks/use-proximity-alert";
 import { Layout } from "@/components/layout";
 import { EarthquakeList } from "@/components/earthquake-list";
 import { WorldMap } from "@/components/world-map";
-import { AlertTriangle, Activity, Database, TrendingUp, Filter } from "lucide-react";
+import { AlertTriangle, Activity, Database, TrendingUp, Filter, MapPin, Volume2, VolumeX, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Dashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>("day");
   const { data, isLoading, isError, isRefetching } = useEarthquakes(timeRange);
 
-  // Countdown timer for next refresh
-  const [countdown, setCountdown] = useState(60);
+  const earthquakes = data?.features || [];
+  const { userLocation, locationError, locationGranted, proximityAlerts, alarmActive, dismissAlarm } =
+    useProximityAlert(earthquakes);
+
+  // Countdown timer for next refresh (10s interval)
+  const [countdown, setCountdown] = useState(10);
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((c) => (c <= 1 ? 60 : c - 1));
+      setCountdown((c) => (c <= 1 ? 10 : c - 1));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
@@ -22,7 +27,7 @@ export default function Dashboard() {
   // Reset countdown when data is fetched
   useEffect(() => {
     if (!isRefetching) {
-      setCountdown(60);
+      setCountdown(10);
     }
   }, [isRefetching, data]);
 
@@ -49,8 +54,6 @@ export default function Dashboard() {
     );
   }
 
-  const earthquakes = data?.features || [];
-  
   // Calculate stats
   const totalCount = earthquakes.length;
   const strongest = earthquakes.reduce((max, eq) => Math.max(max, eq.properties.mag), 0);
@@ -98,6 +101,71 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Proximity Alarm Banner */}
+        {alarmActive && proximityAlerts.length > 0 && (
+          <div className="animate-in slide-in-from-top-4 fade-in duration-300">
+            {proximityAlerts.map(({ earthquake: eq, distanceKm }) => (
+              <div
+                key={eq.id}
+                className="relative flex items-start gap-4 bg-red-950 border-2 border-red-500 rounded-lg p-4 overflow-hidden"
+                data-testid="proximity-alarm-banner"
+              >
+                <div className="absolute inset-0 bg-red-600/10 animate-pulse pointer-events-none" />
+                <Volume2 className="w-7 h-7 text-red-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-red-300 font-black uppercase tracking-widest text-sm">
+                      PROXIMITY ALARM
+                    </span>
+                    <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs font-bold">
+                      M {eq.properties.mag.toFixed(1)}
+                    </span>
+                    <span className="text-red-400 text-xs font-mono border border-red-700 px-2 py-0.5 rounded">
+                      {distanceKm} km from you
+                    </span>
+                  </div>
+                  <div className="text-red-200 text-xs mt-1 truncate">
+                    {eq.properties.place}
+                  </div>
+                  <div className="text-red-400 text-[10px] mt-0.5 uppercase tracking-wider">
+                    Magnitude 4.5+ event within 500 km of your location
+                  </div>
+                </div>
+                <button
+                  onClick={dismissAlarm}
+                  className="shrink-0 text-red-400 hover:text-red-200 transition-colors"
+                  data-testid="dismiss-alarm"
+                  aria-label="Dismiss alarm"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Geolocation Status */}
+        {locationGranted === false && (
+          <div className="flex items-center gap-2 bg-yellow-950/50 border border-yellow-700/50 rounded-md px-3 py-2 text-xs text-yellow-400" data-testid="location-error-banner">
+            <MapPin className="w-4 h-4 shrink-0" />
+            <span>Location access denied — proximity alarm disabled. {locationError}</span>
+          </div>
+        )}
+        {locationGranted === true && proximityAlerts.length === 0 && !alarmActive && (
+          <div className="flex items-center gap-2 bg-green-950/30 border border-green-800/30 rounded-md px-3 py-2 text-xs text-green-500" data-testid="location-ok-banner">
+            <MapPin className="w-4 h-4 shrink-0" />
+            <span>
+              Location acquired — monitoring for M4.5+ events within 500 km of your position
+              {userLocation && (
+                <span className="ml-1 text-green-600">
+                  ({userLocation.lat.toFixed(2)}, {userLocation.lon.toFixed(2)})
+                </span>
+              )}
+            </span>
+            <VolumeX className="w-4 h-4 ml-auto text-green-600" />
+          </div>
+        )}
 
         {/* Significant Alerts */}
         {recentSignificant.length > 0 && (
