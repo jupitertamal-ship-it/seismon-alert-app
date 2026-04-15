@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "167162167086",
+    "project_id": "sismo-b30e5",
+    "storage_bucket": "sismo-b30e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:167162167086:android:6b1a24084f95f5f33504bf",
+        "android_client_info": {
+          "package_name": "com.earthquakeapp.earlywarning"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDYooIrnwyCt7iVVj-gve5TVz8Dn_ivuI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
