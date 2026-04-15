@@ -1,7 +1,7 @@
 {
   "project_info": {
     "project_number": "167162167086",
-    "project_id": "sismo-b30e5",
+    "": "sismo-b30e5",
     "storage_bucket": "sismo-b30e5.firebasestorage.app"
   },
   "client": [
@@ -26,4 +26,6 @@
     }
   ],
   "configuration_version": "1"
+}
+ion_version": "1"
 }
