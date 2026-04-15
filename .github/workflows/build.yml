@@ -3,8 +3,6 @@ name: Build Debug APK
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -16,26 +14,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 24
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+          node-version: '20'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm install
 
       - name: Build web assets
-        working-directory: artifacts/earthquake-app
-        run: pnpm run build:android
-
-      - name: Sync web assets into Android project
-        working-directory: artifacts/earthquake-app
-        run: npx cap sync android
+        run: npm run build
+        # নিশ্চিত করুন যে আপনার package.json এ build স্ক্রিপ্ট আছে
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -43,15 +32,14 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      # Google Services JSON ফাইলটি সিক্রেট থেকে তৈরি করা হচ্ছে
-      - name: Write google-services.json from secret
-        working-directory: artifacts/earthquake-app/android/app
+      - name: Write google-services.json
+        working-directory: android/app
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: echo "$GOOGLE_SERVICES_JSON" > google-services.json
 
       - name: Build Debug APK
-        working-directory: artifacts/earthquake-app/android
+        working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -59,7 +47,6 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: seismon-alert-app-debug
-          path: artifacts/earthquake-app/android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          name: earthquake-app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           
