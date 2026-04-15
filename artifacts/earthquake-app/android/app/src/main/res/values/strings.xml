@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Earthquake Early Warning</string>
+    <string name="title_activity_main">Earthquake Early Warning</string>
+    <string name="package_name">com.earthquakeapp.earlywarning</string>
+    <string name="custom_url_scheme">com.earthquakeapp.earlywarning</string>
+</resources>
