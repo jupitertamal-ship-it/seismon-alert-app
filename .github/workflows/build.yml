@@ -11,10 +11,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Install Dependencies
+        run: |
+          # রুট ডিরেক্টরিতে গিয়ে ডিপেন্ডেন্সি ইনস্টল করা হচ্ছে যাতে প্লাগইনগুলো তৈরি হয়
+          npm install
+          npx cap sync android
+
       - name: Build with Gradle
         run: |
-          # আপনার ফোল্ডার অনুযায়ী লোকেশন সেট করা হয়েছে
-          cd artifacts/earthquake-app/android/
+          cd android/
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -22,5 +27,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Earthquake-App-Final
-          path: "artifacts/earthquake-app/android/app/build/outputs/apk/debug/*.apk"
+          path: "android/app/build/outputs/apk/debug/*.apk"
           
